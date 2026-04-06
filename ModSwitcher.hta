@@ -1,0 +1,230 @@
+<html>
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Mod Switcher</title>
+  <HTA:APPLICATION APPLICATIONNAME="Mod Switcher" BORDER="thin" BORDERSTYLE="normal"
+    MAXIMIZEBUTTON="yes" MINIMIZEBUTTON="yes" SCROLL="yes" SINGLEINSTANCE="yes" WINDOWSTATE="normal"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Segoe UI, sans-serif; background: #f5f5f5; color: #1a1a1a; padding: 1.5rem; font-size: 14px; }
+    h2 { font-size: 18px; font-weight: 500; margin-bottom: 1.5rem; }
+    h3 { font-size: 15px; font-weight: 500; margin-bottom: 12px; }
+    .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .profile-btn { width: 100%; padding: 14px; font-size: 15px; border-radius: 8px; cursor: pointer; font-family: Segoe UI, sans-serif; font-weight: 500; margin-bottom: 10px; border: 1px solid #ddd; background: #f9f9f9; color: #1a1a1a; text-align: left; display: flex; align-items: center; gap: 10px; }
+    .profile-btn:hover { background: #efefef; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-vanilla { background: #1D9E75; }
+    .dot-server { background: #378ADD; }
+    .status { font-size: 13px; color: #666; margin-top: 8px; min-height: 20px; }
+    .error { color: #c0392b; }
+    label { font-size: 13px; color: #555; display: block; margin-bottom: 4px; }
+    input[type=text] { width: 100%; padding: 7px 10px; font-size: 13px; font-family: Segoe UI, sans-serif; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; color: #1a1a1a; }
+    .field { margin-bottom: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .section-label { font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .toggle-settings { background: none; border: none; font-size: 13px; color: #888; cursor: pointer; padding: 0; font-family: Segoe UI, sans-serif; }
+    .toggle-settings:hover { color: #333; }
+    hr { border: none; border-top: 1px solid #e0e0e0; margin: 1.25rem 0; }
+    #settings-panel { display: none; }
+    .save-btn { width: 100%; padding: 10px; font-size: 14px; border-radius: 8px; cursor: pointer; font-family: Segoe UI, sans-serif; font-weight: 500; border: 1px solid #ddd; background: #f0f0f0; color: #1a1a1a; margin-top: 4px; }
+    .save-btn:hover { background: #e4e4e4; }
+    .bottom-pad { height: 1.5rem; }
+  </style>
+</head>
+<body>
+  <h2>Mod switcher</h2>
+
+  <div class="card">
+    <div class="section-label">Switch profile</div>
+    <button class="profile-btn" onclick="switchProfile('vanilla')">
+      <span class="dot dot-vanilla"></span>
+      <span id="btn-vanilla-label">Vanilla / QoL</span>
+    </button>
+    <button class="profile-btn" onclick="switchProfile('server')">
+      <span class="dot dot-server"></span>
+      <span id="btn-server-label">Server</span>
+    </button>
+    <div class="status" id="status">Select a profile to switch.</div>
+  </div>
+
+  <button class="toggle-settings" onclick="toggleSettings()">&#9654; Settings</button>
+
+  <div id="settings-panel">
+    <hr>
+    <div class="card">
+      <h3>General</h3>
+      <div class="field">
+        <label>Minecraft data folder</label>
+        <input type="text" id="mc-path" />
+      </div>
+      <div class="field">
+        <label>Launcher executable path</label>
+        <input type="text" id="launcher-path" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Vanilla / QoL profile</h3>
+      <div class="row">
+        <div class="field">
+          <label>Mods folder name</label>
+          <input type="text" id="vanilla-folder" />
+        </div>
+        <div class="field">
+          <label>Launcher profile name</label>
+          <input type="text" id="vanilla-profile" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Button label</label>
+        <input type="text" id="vanilla-label" oninput="document.getElementById('btn-vanilla-label').innerText=this.value||'Vanilla / QoL'" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Server profile</h3>
+      <div class="row">
+        <div class="field">
+          <label>Mods folder name</label>
+          <input type="text" id="server-folder" />
+        </div>
+        <div class="field">
+          <label>Launcher profile name</label>
+          <input type="text" id="server-profile" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Button label</label>
+        <input type="text" id="server-label" oninput="document.getElementById('btn-server-label').innerText=this.value||'Server'" />
+      </div>
+    </div>
+
+    <button class="save-btn" onclick="saveSettings()">Save settings</button>
+    <div class="status" id="save-status"></div>
+  </div>
+
+  <div class="bottom-pad"></div>
+
+  <script type="text/javascript">
+    var shell = new ActiveXObject("WScript.Shell");
+    var fso   = new ActiveXObject("Scripting.FileSystemObject");
+
+    var defaults = {
+      mcPath: shell.ExpandEnvironmentStrings("%APPDATA%") + "\\.minecraft",
+      launcherPath: "C:\\Program Files (x86)\\Minecraft Launcher\\MinecraftLauncher.exe",
+      vanilla: { folder: "mods-vanilla", profile: "Vanilla", label: "Vanilla / QoL" },
+      server:  { folder: "mods-server",  profile: "Server",  label: "Server" }
+    };
+
+    var configPath = new ActiveXObject("WScript.Shell").CurrentDirectory + "\\mc-mod-switcher.json";
+    var config;
+
+    function loadSettings() {
+        try {
+            if (fso.FileExists(configPath)) {
+            var f = fso.OpenTextFile(configPath, 1);
+            var raw = f.ReadAll();
+            f.Close();
+            var saved = JSON.parse(raw);
+            config = {
+                mcPath: saved.mcPath || defaults.mcPath,
+                launcherPath: saved.launcherPath || defaults.launcherPath,
+                vanilla: {
+                folder:  (saved.vanilla && saved.vanilla.folder)  || defaults.vanilla.folder,
+                profile: (saved.vanilla && saved.vanilla.profile) || defaults.vanilla.profile,
+                label:   (saved.vanilla && saved.vanilla.label)   || defaults.vanilla.label
+                },
+                server: {
+                folder:  (saved.server && saved.server.folder)  || defaults.server.folder,
+                profile: (saved.server && saved.server.profile) || defaults.server.profile,
+                label:   (saved.server && saved.server.label)   || defaults.server.label
+                }
+            };
+            } else {
+            config = defaults;
+            }
+        } catch(e) { config = defaults; }
+
+        document.getElementById("mc-path").value         = config.mcPath;
+        document.getElementById("launcher-path").value   = config.launcherPath;
+        document.getElementById("vanilla-folder").value  = config.vanilla.folder;
+        document.getElementById("vanilla-profile").value = config.vanilla.profile;
+        document.getElementById("vanilla-label").value   = config.vanilla.label;
+        document.getElementById("server-folder").value   = config.server.folder;
+        document.getElementById("server-profile").value  = config.server.profile;
+        document.getElementById("server-label").value    = config.server.label;
+        document.getElementById("btn-vanilla-label").innerText = config.vanilla.label;
+        document.getElementById("btn-server-label").innerText  = config.server.label;
+    }
+
+    function saveSettings() {
+      config.mcPath       = document.getElementById("mc-path").value       || defaults.mcPath;
+      config.launcherPath = document.getElementById("launcher-path").value || defaults.launcherPath;
+      config.vanilla.folder  = document.getElementById("vanilla-folder").value  || defaults.vanilla.folder;
+      config.vanilla.profile = document.getElementById("vanilla-profile").value || defaults.vanilla.profile;
+      config.vanilla.label   = document.getElementById("vanilla-label").value   || defaults.vanilla.label;
+      config.server.folder   = document.getElementById("server-folder").value   || defaults.server.folder;
+      config.server.profile  = document.getElementById("server-profile").value  || defaults.server.profile;
+      config.server.label    = document.getElementById("server-label").value    || defaults.server.label;
+      try {
+        var f = fso.CreateTextFile(configPath, true);
+        f.Write(JSON.stringify(config));
+        f.Close();
+        document.getElementById("save-status").innerText = "Settings saved.";
+      } catch(e) {
+        document.getElementById("save-status").innerText = "Error: " + e.message;
+      }
+      setTimeout(function(){ document.getElementById("save-status").innerText = ""; }, 2000);
+    }
+
+    function toggleSettings() {
+      var p = document.getElementById("settings-panel");
+      p.style.display = p.style.display === "block" ? "none" : "block";
+    }
+
+    function switchProfile(which) {
+      var st = document.getElementById("status");
+      var mcPath      = config.mcPath;
+      var mods        = mcPath + "\\mods";
+      var target      = mcPath + "\\" + config[which].folder;
+      var profileName = config[which].profile;
+      var profilesPath = mcPath + "\\launcher_profiles.json";
+
+      if (!fso.FolderExists(target)) {
+        st.className = "status error";
+        st.innerText = "Error: folder '" + config[which].folder + "' not found.";
+        return;
+      }
+
+      try {
+        if (fso.FileExists(profilesPath)) {
+          var f = fso.OpenTextFile(profilesPath, 1);
+          var raw = f.ReadAll();
+          f.Close();
+          var profiles = eval("(" + raw + ")");
+          for (var id in profiles.profiles) {
+            if (profiles.profiles[id].name === profileName) {
+              profiles.profiles[id].lastUsed = new Date().toISOString();
+              break;
+            }
+          }
+          var f2 = fso.CreateTextFile(profilesPath, true);
+          f2.Write(JSON.stringify(profiles));
+          f2.Close();
+        }
+      } catch(e) {
+        st.className = "status error";
+        st.innerText = "Error updating launcher profile: " + e.message;
+        return;
+      }
+
+      var cmd = "cmd /c rmdir /s /q \"" + mods + "\" & mklink /J \"" + mods + "\" \"" + target + "\" & \"" + config.launcherPath + "\"";
+      shell.Run(cmd, 0, false);
+      st.className = "status";
+      st.innerText = "Switched to " + config[which].label + " and launching...";
+    }
+
+    loadSettings();
+  </script>
+</body>
+</html>
