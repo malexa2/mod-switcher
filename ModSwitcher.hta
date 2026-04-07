@@ -182,17 +182,44 @@
       p.style.display = p.style.display === "block" ? "none" : "block";
     }
 
-    function switchProfile(which) {
+    function switchProfile(idx) {
       var st = document.getElementById("status");
-      var mcPath      = config.mcPath;
-      var mods        = mcPath + "\\mods";
-      var target      = mcPath + "\\" + config[which].folder;
-      var profileName = config[which].profile;
+      var p = (idx === 'vanilla') ? config.vanilla : (idx === 'server') ? config.server : null;
+      if (!p) { st.innerText = "Unknown profile: " + idx; return; }
+      var mcPath       = config.mcPath;
+      var mods         = mcPath + "\\mods";
+      var target       = mcPath + "\\" + p.folder;
       var profilesPath = mcPath + "\\launcher_profiles.json";
+      var optionsPath  = mcPath + "\\options.txt";
+      var optionsDest  = mcPath + "\\options-" + p.folder.replace("mods-", "") + ".txt";
 
       if (!fso.FolderExists(target)) {
         st.className = "status error";
-        st.innerText = "Error: folder '" + config[which].folder + "' not found.";
+        st.innerText = "Error: folder '" + p.folder + "' not found.";
+        return;
+      }
+
+      try {
+        if (config.activeProfile && config.activeProfile !== idx) {
+          var prev = config.profiles[config.activeProfile];
+          if (prev) {
+            var prevOptions = mcPath + "\\options-" + prev.folder.replace("mods-", "") + ".txt";
+            if (fso.FileExists(optionsPath)) {
+              fso.CopyFile(optionsPath, prevOptions, true);
+            }
+          }
+        }
+      } catch(e) {}
+
+      try {
+        if (fso.FileExists(optionsDest)) {
+          fso.CopyFile(optionsDest, optionsPath, true);
+        } else if (fso.FileExists(optionsPath)) {
+          fso.CopyFile(optionsPath, optionsDest, true);
+        }
+      } catch(e) {
+        st.className = "status error";
+        st.innerText = "Error copying options.txt: " + e.message;
         return;
       }
 
@@ -201,9 +228,9 @@
           var f = fso.OpenTextFile(profilesPath, 1);
           var raw = f.ReadAll();
           f.Close();
-          var profiles = eval("(" + raw + ")");
+          var profiles = JSON.parse(raw);
           for (var id in profiles.profiles) {
-            if (profiles.profiles[id].name === profileName) {
+            if (profiles.profiles[id].name === p.profile) {
               profiles.profiles[id].lastUsed = new Date().toISOString();
               break;
             }
@@ -218,10 +245,15 @@
         return;
       }
 
+      config.activeProfile = idx;
+      var f3 = fso.CreateTextFile(configPath, true);
+      f3.Write(JSON.stringify(config));
+      f3.Close();
+
       var cmd = "cmd /c rmdir /s /q \"" + mods + "\" & mklink /J \"" + mods + "\" \"" + target + "\" & \"" + config.launcherPath + "\"";
       shell.Run(cmd, 0, false);
       st.className = "status";
-      st.innerText = "Switched to " + config[which].label + " and launching...";
+      st.innerText = "Switched to " + p.label + " and launching...";
     }
 
     loadSettings();
